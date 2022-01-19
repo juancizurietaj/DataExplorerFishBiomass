@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/DataExplorerFishBiomass.iml" filepath="$PROJECT_DIR$/.idea/DataExplorerFishBiomass.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../DataExplorerFishBiomass/.idea/DataExplorerFishBiomass.iml" filepath="$PROJECT_DIR$/../DataExplorerFishBiomass/.idea/DataExplorerFishBiomass.iml" />
     </modules>
   </component>
 </project>
