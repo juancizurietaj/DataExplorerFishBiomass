@@ -7,11 +7,63 @@ import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
 from helpers import *
 
+# TODO Dynamic filters
+# TODO Change column names
+# TODO Add chart labels (bar values)
+# TODO Add tables section
+# TODO Second metric CSS Show it lighter
+# TODO If metric has >20 values, trim top for chart & Choose pie chart for 2 values
+# TODO Add logo in export images
+# TODO add button to invert order in charts
+# TODO Delete downloaded file
+
 # Data loading
 data = pd.read_feather(r"C:\Users\juancarlos.izurieta\PycharmProjects\KnowingMoreMarine\data\fish.feather")
 
-# App definition
+# App constructor
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
+
+# Methods
+methods = html.Div(
+    [
+        html.H1("Peces y vertebrados marinos", className="h1"),
+        html.P(methods_text_1, className="labels", style={"padding": "0px 20px"}),
+        html.P(methods_text_2, className="texts"),
+        html.P(methods_text_3, className="texts"),
+    ]
+)
+
+records_label = value_cards("Registros", data)
+sites_label = value_cards("Sitios", data["Site"].unique())
+islands_label = value_cards("Islas", data["Island"].unique())
+species_label = value_cards("Especies", data["ScientificName"].unique())
+func_groups_label = value_cards("Grupos funcionales", data["Functional.Group"].unique())
+
+methods_value_cards = html.Div(
+    [
+        records_label,
+        sites_label,
+        islands_label,
+        species_label,
+        func_groups_label
+    ], className="value-cards-container"
+)
+
+methods_line_chart = two_axis_line_chart(data, "year", "id", "Site", "Años", "Registros", "Sitios")
+methods_map = simple_map(data, "Latitude", "Longitude", "Site", "id")
+
+methods_charts = html.Div(
+    [
+        html.Div(dcc.Graph(id="methods-line-chart",
+                           figure=methods_line_chart,
+                           config={'displayModeBar': False}),
+                 style={"display": "flex"}),
+        html.Div(dcc.Graph(id="methods-map",
+                           figure=methods_map,
+                           config={'displayModeBar': False}),
+                 style={"display": "flex"})
+    ], style={"display": "flex", "justify-content": "space-around"}
+)
 
 # Controls
 bioregion_selection = checklist_creator(data, "Bioregion", _id="bioregion-selection")
@@ -31,7 +83,7 @@ year_selection = dcc.RangeSlider(id="year-selection",
                                  value=[years[0], years[-1]],
                                  tooltip={"placement": "bottom", "always_visible": True})
 
-# Controls layout (accordion)
+# Controls layout (accordions panel)
 controls = html.Div(
     [
         html.Label("Filtros y controles", className="labels"),
@@ -103,7 +155,7 @@ controls = html.Div(
     ]
 )
 
-# Chart controls
+# Chart variable picker controls
 variable_one = dcc.Dropdown(id="variable-one",
                             options=[{"label": i, 'value': i} for i in data.select_dtypes([object]).columns],
                             placeholder="Seleccione una variable",
@@ -114,20 +166,22 @@ add_second_variable = dbc.Checklist(id="add-second-variable",
                                     value=False,
                                     switch=True)
 
+variable_two = html.Div(dcc.Dropdown(id="variable-two",
+                                     options=[{"label": i, 'value': i} for i in
+                                              data.select_dtypes([object]).columns],
+                                     placeholder="Seleccione una variable",
+                                     value="Functional.Group", disabled=True, clearable=False))
+
 chart_controls = html.Div(
     children=[
         html.Label("Métrica", className="labels"),
         variable_one,
         add_second_variable,
-        html.Div(dcc.Dropdown(id="variable-two",
-                              options=[{"label": i, 'value': i} for i in
-                                       data.select_dtypes([object]).columns],
-                              placeholder="Seleccione una variable",
-                              value="Functional.Group", disabled=True, clearable=False))
+        variable_two
     ]
 )
 
-# Charts
+# Chart section
 charts = html.Div(
     children=[
         dcc.Graph("chart", config={'displayModeBar': False}),
@@ -154,22 +208,47 @@ chart_tab_sections = html.Div(
     )
 )
 
-# Tabs
-tab2 = tab_creator("GRÁFICOS", chart_tab_sections)
-tab3 = tab_creator("MAPAS", "PENDIENTE")
-tab4 = tab_creator("DESCARGAS", "DESCARGAS")
+# Table section
+tables = html.Div(
+    children=[
+        dcc.Graph(id="table", config={'displayModeBar': False}),
+        html.Button("Descargar table", id="btn-table", className="download-button"),
+        dcc.Download(id="download-table")
+    ]
+)
 
-share_icon = html.Img(
-    src="https://cdn-icons.flaticon.com/png/512/1358/premium/1358023.png?token=exp=1642524724~hmac=72a76b6f63a9bfbcaac9cfe95820576a",
-    height="15px")
-tab5 = tab_creator(list(share_icon), share_icon)
-tabs = dbc.Tabs([tab2, tab3, tab4, tab5])
+# Tab layout: tables
+table_tab_sections = html.Div(
+    dbc.Row(
+        [
+            dbc.Col(dbc.Card(html.Div(), body=True),
+                    width=3,
+                    style={"marginTop": "20px"},
+                    id="controls-col-table"),
+            dbc.Col([dbc.Card(html.Div(tables), body=True)],
+                    width=9,
+                    style={"marginTop": "20px"},
+                    id="table-col")
+        ], style={"display": "flex"}, id="controls-table"
+    )
+)
+
+# Tabs
+tab1 = tab_creator("MÉTODOS", [methods, methods_value_cards, methods_charts])
+tab2 = tab_creator("GRÁFICOS", chart_tab_sections)
+tab3 = tab_creator("TABLAS", table_tab_sections)
+tab4 = tab_creator("MAPAS", "PENDIENTE")
+tab5 = tab_creator("DESCARGAS", "DESCARGAS")
+
+tabs = dbc.Tabs([tab1, tab2, tab3, tab4])
 
 # App layout
 app.layout = html.Div(
     [
         header,
-        tabs
+        tabs,
+        html.Hr(),
+        footer
     ], style={"width": "99%"}  # This avoids the horizontal scroll bar
 )
 
@@ -210,15 +289,10 @@ def func(n_clicks, chart_dict):
 )
 def select_all(checkA, checkB, checkC, checkD, checkE, bioregion_options, zone_options, island_options, order_options,
                family_options):
-    bioregion_all = []
     bioregion_all = [i["value"] for i in bioregion_options if checkA]
-    zone_all = []
     zone_all = [i["value"] for i in zone_options if checkB]
-    island_all = []
     island_all = [i["value"] for i in island_options if checkC]
-    order_all = []
     order_all = [i["value"] for i in order_options if checkD]
-    family_all = []
     family_all = [i["value"] for i in family_options if checkE]
 
     return bioregion_all, zone_all, island_all, order_all, family_all
@@ -280,6 +354,7 @@ def generate_figures(variable_one, check, variable_two, selectionA, selectionB, 
     df = df[df["Biomass.250m2"] > 0]
     df.reset_index(col_level=0, inplace=True)
     fig1 = bar_chart_creator(df, variable_one)
+    table1 = create_one_variable_table(df)
     if check:
         df = data_copy.groupby([variable_one, variable_two]).agg({"Biomass.250m2": "sum"})
         df.reset_index(col_level=0, inplace=True)
