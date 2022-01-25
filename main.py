@@ -19,6 +19,7 @@ from helpers import *
 
 # Data loading
 data = pd.read_feather(r"C:\Users\juancarlos.izurieta\PycharmProjects\KnowingMoreMarine\data\fish.feather")
+data["Biomass.250m2"] = round(data["Biomass.250m2"], 2)
 
 # App constructor
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.FLATLY])
@@ -190,6 +191,19 @@ charts = html.Div(
     ]
 )
 
+# Table section
+tables = html.Div(
+    children=[
+        html.Div(id="table"),
+        html.Button("Descargar tabla", id="btn-table", className="download-button"),
+        dcc.Download(id="download-table")
+    ]
+)
+
+# Charts and tables tabs
+subtabs = dbc.Tabs([tab_creator("GRÁFICO", charts),
+                    tab_creator("TABLA", tables)])
+
 # Tab layout: charts
 chart_tab_sections = html.Div(
     dbc.Row(
@@ -200,21 +214,12 @@ chart_tab_sections = html.Div(
                     id="controls-col"),
             dbc.Col([dbc.Card(chart_controls, body=True),
                      html.Br(),
-                     dbc.Card(charts, body=True)],
+                     dbc.Card(subtabs, body=True)],
                     width=9,
                     style={"marginTop": "20px"},
                     id="charts-col")
         ], style={"display": "flex"}, id="controls"
     )
-)
-
-# Table section
-tables = html.Div(
-    children=[
-        dcc.Graph(id="table", config={'displayModeBar': False}),
-        html.Button("Descargar table", id="btn-table", className="download-button"),
-        dcc.Download(id="download-table")
-    ]
 )
 
 # Tab layout: tables
@@ -236,7 +241,7 @@ table_tab_sections = html.Div(
 # Tabs
 tab1 = tab_creator("MÉTODOS", [methods, methods_value_cards, methods_charts])
 tab2 = tab_creator("GRÁFICOS", chart_tab_sections)
-tab3 = tab_creator("TABLAS", table_tab_sections)
+tab3 = tab_creator("TABLAS", "CAMBIAR A DATOS?")
 tab4 = tab_creator("MAPAS", "PENDIENTE")
 tab5 = tab_creator("DESCARGAS", "DESCARGAS")
 
@@ -313,6 +318,7 @@ def generate_second_variable_input(check, status):
 
 @app.callback(
     Output("chart", "figure"),
+    Output("table", "children"),
     Input("variable-one", "value"),
     Input("add-second-variable", "value"),
     Input("variable-two", "value"),
@@ -352,16 +358,19 @@ def generate_figures(variable_one, check, variable_two, selectionA, selectionB, 
     df = data_copy.groupby(variable_one)["Biomass.250m2"].sum()
     df = pd.DataFrame(df).sort_values("Biomass.250m2")
     df = df[df["Biomass.250m2"] > 0]
+    df["Biomass.250m2"] = round(df["Biomass.250m2"], 2)
     df.reset_index(col_level=0, inplace=True)
     fig1 = bar_chart_creator(df, variable_one)
-    table1 = create_one_variable_table(df)
+    table1 = create_one_variable_table(df.sort_values("Biomass.250m2", ascending=False), variable_one)
     if check:
         df = data_copy.groupby([variable_one, variable_two]).agg({"Biomass.250m2": "sum"})
         df.reset_index(col_level=0, inplace=True)
         df = pd.crosstab(index=df[variable_one], columns=df[variable_two], values=df["Biomass.250m2"], aggfunc="sum")
         df.reset_index(col_level=0, inplace=True)
+        df.iloc[:] = round(df.iloc[:], 2)
         fig1 = bivariate_bar_chart_creator(df, variable_one, variable_two)
-    return fig1
+        table1 = create_two_variable_table(df, variable_one, variable_two)
+    return fig1, table1
 
 
 if __name__ == '__main__':
